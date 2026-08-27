@@ -4179,3 +4179,32 @@ mod fuzz {
         }
     }
 }
+
+#[test]
+fn test_create_match_max_stake_boundary() {
+    // Use the same setup helper as the fuzz tests.
+    let (env, contract_id, oracle, admin, _, player1, player2, token) = setup();
+    let client = EscrowContractClient::new(&env, &contract_id);
+
+    let max_stake = crate::MAX_STAKE; // Should be 10_000_000_000_000
+    let game_id = String::from_str(&env, "max_stake_test");
+
+    let result = client.try_create_match(
+        &player1,
+        &player2,
+        &max_stake,
+        &token,
+        &game_id,
+        &Platform::Lichess,
+    );
+
+    // Assert success – the exact maximum stake must be accepted.
+    assert!(result.is_ok(), "create_match with MAX_STAKE should succeed");
+    let match_id = result.unwrap();
+    assert!(match_id >= 0);
+
+    // Verify the match was stored correctly.
+    let match_data = client.get_match(&match_id).unwrap();
+    assert_eq!(match_data.stake_amount, max_stake);
+    assert_eq!(match_data.state, MatchState::Pending);
+}
