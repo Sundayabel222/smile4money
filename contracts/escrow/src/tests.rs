@@ -4208,3 +4208,49 @@ fn test_create_match_max_stake_boundary() {
     assert_eq!(match_data.stake_amount, max_stake);
     assert_eq!(match_data.state, MatchState::Pending);
 }
+
+#[test]
+fn test_finalize_result_at_exact_dispute_window_boundary() {
+    let (env, contract_id, oracle, admin, _, player1, player2, token) = setup();
+    let client = EscrowContractClient::new(&env, &contract_id);
+
+    let stake = 1000;
+    let game_id = String::from_str(&env, "boundary_test");
+
+    // 1. Create match
+    let match_id = client.try_create_match(
+        &player1,
+        &player2,
+        &stake,
+        &token,
+        &game_id,
+        &Platform::Lichess,
+    ).unwrap();
+
+    // 2. Both players deposit
+    client.deposit(&player1, &match_id, &stake).unwrap();
+    client.deposit(&player2, &match_id, &stake).unwrap();
+
+    // 3. Oracle submits result (state → PendingResult)
+    let result = MatchResult::Player1Wins;
+    client.submit_result(&oracle, &match_id, &result, &game_id).unwrap();
+
+    // 4. Get the stored match to read pending_result_ledger
+    let match_data = client.get_match(&match_id).unwrap();
+    let pending_result_ledger = match_data.pending_result_ledger.unwrap(); // unwrap safely
+
+    // 5. Get dispute window from the contract (or use constant)
+    let dispute_window = crate::DISPUTE_WINDOW_LEDGERS; // adjust if needed
+
+    // 6. Advance ledger to exactly pending_result_ledger + dispute_window
+    let boundary_ledger = pending_result_ledger + dispute_window;
+    env.ledger().set_sequence_number(boundary_ledger);
+
+    // 7. Call finalize_result – must be rejected with DisputeWindowActive
+    let result = client.try_finalize_result(&match_id);
+    assert!(
+        matches!(result, Err(Ok(Error::DisputeWindowActive))),
+        "finalize_result at exact boundary should be rejected with DisputeWindowActive, got: {:?}",
+        result
+    );
+}
