@@ -1,3 +1,8 @@
-import { MatchStore } from './match-store.js';
+import { SqliteMatchStore } from './sqlite-match-store.js';
 
-export const matchStore = new MatchStore();
+export const matchStore = new SqliteMatchStore();
+
+/** Initialize the match store's SQLite database. Call once at startup. */
+export async function initializeMatchStore(): Promise<void> {
+  await matchStore.initialize();
+}
