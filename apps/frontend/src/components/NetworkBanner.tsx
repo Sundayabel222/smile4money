@@ -1,13 +1,14 @@
 import React from 'react';
-
-const EXPECTED_NETWORK = import.meta.env.VITE_STELLAR_NETWORK ?? 'testnet';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 interface NetworkBannerProps {
   walletNetwork: string | null;
 }
 
 export function NetworkBanner({ walletNetwork }: NetworkBannerProps) {
-  if (!walletNetwork || walletNetwork === EXPECTED_NETWORK) {
+  const { isMismatch, walletNetwork: currentNetwork, expectedNetwork } = useNetworkStatus(walletNetwork);
+
+  if (!isMismatch) {
     return null;
   }
 
@@ -17,8 +18,8 @@ export function NetworkBanner({ walletNetwork }: NetworkBannerProps) {
       data-testid="network-banner"
       className="w-full bg-red-600 px-4 py-3 text-center text-sm font-medium text-white"
     >
-      Wrong network detected: your wallet is on <strong>{walletNetwork}</strong> but this app
-      requires <strong>{EXPECTED_NETWORK}</strong>.{' '}
+      Wrong network detected: your wallet is on <strong>{currentNetwork}</strong> but this app
+      requires <strong>{expectedNetwork}</strong>.{' '}
       <a
         href="https://www.freighter.app/"
         target="_blank"

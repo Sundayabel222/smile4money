@@ -52,46 +52,92 @@ export function RegistrationForm({ onSubmit }: RegistrationFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
+    <form onSubmit={handleSubmit} noValidate aria-label="Registration form">
+      {/* Email */}
       <div>
-        <label htmlFor="email">Email</label>
+        <label htmlFor="reg-email">
+          Email <span aria-hidden="true">*</span>
+        </label>
         <input
-          id="email"
+          id="reg-email"
           type="email"
           value={fields.email}
           onChange={(e) => update('email', e.target.value)}
           onBlur={() => blur('email')}
-          aria-describedby={errors.email ? 'email-error' : undefined}
+          aria-required="true"
+          aria-invalid={errors.email ? 'true' : 'false'}
+          aria-describedby={errors.email ? 'reg-email-error' : undefined}
+          autoComplete="email"
         />
-        {errors.email && <span id="email-error">{errors.email}</span>}
+        {errors.email && (
+          <span id="reg-email-error" role="alert" aria-live="polite">
+            {errors.email}
+          </span>
+        )}
       </div>
+
+      {/* Password */}
       <div>
-        <label htmlFor="password">Password</label>
+        <label htmlFor="reg-password">
+          Password <span aria-hidden="true">*</span>
+        </label>
         <input
-          id="password"
+          id="reg-password"
           type="password"
           value={fields.password}
           onChange={(e) => update('password', e.target.value)}
           onBlur={() => blur('password')}
-          aria-describedby={errors.password ? 'password-error' : undefined}
+          aria-required="true"
+          aria-invalid={errors.password ? 'true' : 'false'}
+          aria-describedby={
+            errors.password
+              ? 'reg-password-error'
+              : 'reg-password-hint'
+          }
+          autoComplete="new-password"
         />
-        {errors.password && <span id="password-error">{errors.password}</span>}
+        <span id="reg-password-hint" className="field-hint">
+          At least 8 characters, one uppercase letter, and one number.
+        </span>
+        {errors.password && (
+          <span id="reg-password-error" role="alert" aria-live="polite">
+            {errors.password}
+          </span>
+        )}
       </div>
+
+      {/* Confirm Password */}
       <div>
-        <label htmlFor="confirmPassword">Confirm Password</label>
+        <label htmlFor="reg-confirm-password">
+          Confirm Password <span aria-hidden="true">*</span>
+        </label>
         <input
-          id="confirmPassword"
+          id="reg-confirm-password"
           type="password"
           value={fields.confirmPassword}
           onChange={(e) => update('confirmPassword', e.target.value)}
           onBlur={() => blur('confirmPassword')}
-          aria-describedby={errors.confirmPassword ? 'confirm-error' : undefined}
+          aria-required="true"
+          aria-invalid={errors.confirmPassword ? 'true' : 'false'}
+          aria-describedby={errors.confirmPassword ? 'reg-confirm-error' : undefined}
+          autoComplete="new-password"
         />
-        {errors.confirmPassword && <span id="confirm-error">{errors.confirmPassword}</span>}
+        {errors.confirmPassword && (
+          <span id="reg-confirm-error" role="alert" aria-live="polite">
+            {errors.confirmPassword}
+          </span>
+        )}
       </div>
-      <button type="submit" disabled={submitting}>
-        Register
+
+      <button type="submit" disabled={submitting} aria-busy={submitting}>
+        {submitting ? 'Registering…' : 'Register'}
       </button>
+
+      {submitted && !submitting && Object.keys(errors).length === 0 && (
+        <p role="status" aria-live="polite">
+          Registration submitted successfully.
+        </p>
+      )}
     </form>
   );
 }
