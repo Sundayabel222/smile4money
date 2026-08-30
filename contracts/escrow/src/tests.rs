@@ -3907,6 +3907,35 @@ fn test_activated_ledger_some_after_both_deposits() {
 // create_match either succeeds or returns one of the known-valid error codes.
 // The contract should NEVER panic, even with arbitrary inputs.
 
+#[test]
+fn test_create_match_min_stake_boundary() {
+    // Use the same setup helper as the fuzz tests – it returns all needed variables.
+    let (env, contract_id, oracle, admin, _, player1, player2, token) = setup();
+    let client = EscrowContractClient::new(&env, &contract_id);
+
+    let min_stake = crate::MIN_STAKE; // Should be 1
+    let game_id = String::from_str(&env, "min_stake_test");
+
+    let result = client.try_create_match(
+        &player1,
+        &player2,
+        &min_stake,
+        &token,
+        &game_id,
+        &Platform::Lichess,
+    );
+
+    // Assert success – the exact minimum stake must be accepted.
+    assert!(result.is_ok(), "create_match with MIN_STAKE should succeed");
+    let match_id = result.unwrap();
+    assert!(match_id >= 0);
+
+    // Optionally verify the match was stored correctly.
+    let match_data = client.get_match(&match_id).unwrap();
+    assert_eq!(match_data.stake_amount, min_stake);
+    assert_eq!(match_data.state, MatchState::Pending);
+}
+
 #[cfg(test)]
 mod fuzz {
     use super::*;
