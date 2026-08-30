@@ -71,8 +71,17 @@ function createLimiter(options: RateLimiterOptions): Bottleneck {
 }
 
 /**
- * Get Lichess API rate limiter.
- * Default: 30 requests per 60 seconds (safe margin below 60 req/min limit).
+ * DEPRECATED: Do not use. Creates independent limiter instances per call.
+ *
+ * This function is deprecated and should not be used. It creates a new
+ * limiter instance on each invocation, meaning each caller gets an independent
+ * token reservoir. Multiple callers using this function can exceed API rate
+ * limits by a factor of N (number of callers).
+ *
+ * Use getLichessLimiterSingleton() instead, which shares a single rate limit
+ * bucket across all callers.
+ *
+ * @deprecated Use getLichessLimiterSingleton() instead.
  */
 export function getLichessLimiter(): Bottleneck {
   const maxRequests = parseInt(process.env.LICHESS_RATE_LIMIT || '30', 10);
@@ -87,8 +96,17 @@ export function getLichessLimiter(): Bottleneck {
 }
 
 /**
- * Get Chess.com API rate limiter.
- * Default: 20 requests per 60 seconds (conservative, as limits are undocumented).
+ * DEPRECATED: Do not use. Creates independent limiter instances per call.
+ *
+ * This function is deprecated and should not be used. It creates a new
+ * limiter instance on each invocation, meaning each caller gets an independent
+ * token reservoir. Multiple callers using this function can exceed API rate
+ * limits by a factor of N (number of callers).
+ *
+ * Use getChessDotComLimiterSingleton() instead, which shares a single rate limit
+ * bucket across all callers.
+ *
+ * @deprecated Use getChessDotComLimiterSingleton() instead.
  */
 export function getChessDotComLimiter(): Bottleneck {
   const maxRequests = parseInt(process.env.CHESSDOTCOM_RATE_LIMIT || '20', 10);
