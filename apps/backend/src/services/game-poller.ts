@@ -9,7 +9,7 @@
  */
 
 import { fetchLichessResult, GameNotFoundError } from '../fetchers/lichess.js';
-import { fetchChessDotComResult } from '../fetchers/chessdotcom.js';
+import { fetchChessDotComResult, RateLimitError } from '../fetchers/chessdotcom.js';
 import type { GamePoller, PollJob, PollJobStatus } from './polling.js';
 import logger from '../logger.js';
 
@@ -82,6 +82,23 @@ export class ChessPlatformPoller implements GamePoller {
         result: result.result,
       };
     } catch (err) {
+      // Handle rate limit errors — return 'in_progress' to retry
+      if (err instanceof RateLimitError) {
+        logger.warn(
+          {
+            match_id: job.matchId,
+            game_id: job.gameId,
+            platform: job.platform,
+          },
+          'game_poll_rate_limited_will_retry',
+        );
+
+        return {
+          status: 'in_progress',
+          reason: 'Rate limited by API, will retry',
+        };
+      }
+
       // Handle specific error types
       if (err instanceof GameNotFoundError) {
         logger.error(
