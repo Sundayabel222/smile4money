@@ -1,9 +1,11 @@
 import axios from 'axios';
 import { getChessDotComLimiterSingleton } from '../services/bottleneck-limiters.js';
 import logger from '../logger.js';
+import { RateLimitError } from '../errors/RateLimitError.js';
 import type { MatchResult, GameResult } from './lichess.js';
 
 export { GameNotFoundError } from './lichess.js';
+export { RateLimitError } from '../errors/RateLimitError.js';
 export type { MatchResult, GameResult };
 
 interface ChessDotComGame {
@@ -49,7 +51,7 @@ async function fetchArchive(username: string, year: number, month: number): Prom
       }
 
       if (response.status === 429) {
-        throw new Error('Chess.com API rate limit exceeded (429)');
+        throw new RateLimitError('Chess.com API rate limit exceeded (429)');
       }
 
       if (response.status !== 200) {

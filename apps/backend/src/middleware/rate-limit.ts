@@ -39,8 +39,9 @@ export class RateLimitStore {
   /**
    * Check if a client has exceeded the rate limit.
    * Returns true if the request is allowed, false if rate limited.
+   * When rate limited, also returns the time in seconds until the next token is available.
    */
-  isAllowed(clientId: string): boolean {
+  isAllowed(clientId: string): { allowed: boolean; retryAfterSeconds?: number } {
     const now = Date.now();
     let bucket = this.buckets.get(clientId);
 
@@ -48,7 +49,7 @@ export class RateLimitStore {
       // First request from this client
       bucket = { tokens: this.capacity - 1, lastRefill: now };
       this.buckets.set(clientId, bucket);
-      return true;
+      return { allowed: true };
     }
 
     // Refill tokens based on elapsed time
@@ -63,10 +64,18 @@ export class RateLimitStore {
     // Check if request is allowed
     if (bucket.tokens > 0) {
       bucket.tokens -= 1;
-      return true;
+      return { allowed: true };
     }
 
-    return false;
+    // Rate limited — calculate time until next refill
+    const timeSinceLastRefill = now - bucket.lastRefill;
+    const timeUntilNextRefillMs = this.refillIntervalMs - timeSinceLastRefill;
+    const retryAfterSeconds = Math.ceil(timeUntilNextRefillMs / 1000);
+
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(1, retryAfterSeconds),
+    };
   }
 
   /**
@@ -131,14 +140,19 @@ export function createRateLimitMiddleware(
 
   return (req: Request, res: Response, next: NextFunction) => {
     const clientId = keyExtractor(req);
-    const allowed = store.isAllowed(clientId);
+    const result = store.isAllowed(clientId);
 
     // Set rate limit headers for all responses
     const remainingTokens = store.getRemainingTokens(clientId);
     res.setHeader('X-RateLimit-Limit', '100'); // capacity
     res.setHeader('X-RateLimit-Remaining', String(Math.max(0, remainingTokens)));
 
-    if (!allowed) {
+    if (!result.allowed) {
+      // Set Retry-After header per RFC 6585
+      if (result.retryAfterSeconds) {
+        res.setHeader('Retry-After', String(result.retryAfterSeconds));
+      }
+
       return res.status(statusCode).json({
         error: 'rate_limit_exceeded',
         message,
