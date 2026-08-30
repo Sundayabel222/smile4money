@@ -4,6 +4,8 @@ interface TxHashProps {
   hash: string;
 }
 
+const network = import.meta.env.VITE_STELLAR_NETWORK ?? 'testnet';
+
 export function TxHash({ hash }: TxHashProps) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,9 +36,16 @@ export function TxHash({ hash }: TxHashProps) {
 
   return (
     <span className="tx-hash-block" data-testid="tx-hash-block">
-      <span className="tx-hash-value" data-testid="tx-hash-value">
+      <a
+        href={`https://stellar.expert/explorer/${network}/tx/${hash}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="tx-hash-value"
+        data-testid="tx-hash-value"
+        aria-label="View transaction on Stellar Expert"
+      >
         {hash.slice(0, 8)}…{hash.slice(-8)}
-      </span>
+      </a>
       <button
         type="button"
         className="tx-hash-copy-btn"
