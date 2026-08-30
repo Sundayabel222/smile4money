@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { WalletStatus, Network } from '../types';
 
 const EXPECTED_NETWORK =
@@ -50,9 +50,13 @@ function detectNetwork(networkPassphrase?: string): Network {
   return 'unknown';
 }
 
-async function fetchHorizonBalance(address: string, network: Network): Promise<string> {
+async function fetchHorizonBalance(
+  address: string,
+  network: Network,
+  signal?: AbortSignal,
+): Promise<string> {
   const horizon = HORIZON_URLS[network] || HORIZON_URLS.unknown;
-  const res = await fetch(`${horizon}/accounts/${address}`);
+  const res = await fetch(`${horizon}/accounts/${address}`, { signal });
   if (!res.ok) throw new Error('Failed to fetch balance');
   const data = await res.json();
   const native = data.balances.find((b: { asset_type: string }) => b.asset_type === 'native');
@@ -68,6 +72,9 @@ export function useStellarWallet(): StellarWallet {
 
   const freighter = typeof window !== 'undefined' ? window.freighterApi : undefined;
   const isInstalled = !!freighter;
+
+  // Ref to abort in-flight balance fetches on unmount or re-fetch.
+  const balanceAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -125,7 +132,11 @@ export function useStellarWallet(): StellarWallet {
           setStatus('connected');
         }
 
-        fetchHorizonBalance(publicKey, detectedNetwork)
+        // Abort any previous in-flight balance fetch before starting a new one.
+        balanceAbortRef.current?.abort();
+        const controller = new AbortController();
+        balanceAbortRef.current = controller;
+        fetchHorizonBalance(publicKey, detectedNetwork, controller.signal)
           .then((bal) => setBalance(bal))
           .catch(() => setBalance(null));
       } catch {
@@ -142,13 +153,17 @@ export function useStellarWallet(): StellarWallet {
     return () => {
       window.removeEventListener('freighter:accountChanged', handleWalletChange);
       window.removeEventListener('freighter:networkChanged', handleWalletChange);
+      balanceAbortRef.current?.abort();
     };
   }, []);
 
   const refreshBalance = useCallback(async () => {
     if (!address) return;
     try {
-      const bal = await fetchHorizonBalance(address, network);
+      balanceAbortRef.current?.abort();
+      const controller = new AbortController();
+      balanceAbortRef.current = controller;
+      const bal = await fetchHorizonBalance(address, network, controller.signal);
       setBalance(bal);
     } catch {
       setBalance(null);
@@ -187,7 +202,11 @@ export function useStellarWallet(): StellarWallet {
         setStatus('connected');
       }
 
-      fetchHorizonBalance(publicKey, detectedNetwork)
+      // Abort any previous in-flight balance fetch before starting a new one.
+      balanceAbortRef.current?.abort();
+      const controller = new AbortController();
+      balanceAbortRef.current = controller;
+      fetchHorizonBalance(publicKey, detectedNetwork, controller.signal)
         .then((bal) => setBalance(bal))
         .catch(() => setBalance(null));
     } catch (err) {
