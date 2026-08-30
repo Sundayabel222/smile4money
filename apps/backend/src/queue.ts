@@ -138,25 +138,25 @@ export function startRetryWorker(
   };
 
   const timer = setInterval(async () => {
-    try {
-      const entries = await listDlqEntries();
-      if (entries.length === 0) return;
+    const entries = await listDlqEntries();
+    if (entries.length === 0) return;
 
-      // Respect circuit breaker state
-      if (!breaker.allowRequest()) {
-        const remaining = breaker.getRemainingCooldown();
-        logger.warn(
-          { remaining, state: breaker.getState(), count: entries.length },
-          'circuit_breaker: job processing paused',
-        );
-        return;
-      }
-
-      logger.info(
-        { count: entries.length, state: breaker.getState() },
-        'oracle_dlq: retry worker running',
+    // Respect circuit breaker state
+    if (!breaker.allowRequest()) {
+      const remaining = breaker.getRemainingCooldown();
+      logger.warn(
+        { remaining, state: breaker.getState(), count: entries.length },
+        'circuit_breaker: job processing paused',
       );
+      return;
+    }
 
+    logger.info(
+      { count: entries.length, state: breaker.getState() },
+      'oracle_dlq: retry worker running',
+    );
+
+    try {
       for (const entry of entries) {
         // Record the attempt before calling the handler
         entry.attempts += 1;
