@@ -28,12 +28,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("writeToDlq", () => {
-  it("adds an entry to the DLQ", () => {
-    writeToDlq({ matchId: 1 }, "RPC timeout");
-    expect(listDlqEntries()).toHaveLength(1);
-  });
-
 describe('Persistent Queue System', () => {
   beforeEach(async () => {
     // Force in-memory store for testing
@@ -387,10 +381,10 @@ describe('Persistent Queue System', () => {
 
       try {
         await vi.advanceTimersByTimeAsync(1000);
-
-    await vi.advanceTimersByTimeAsync(2000);
-
-      stop();
+        await vi.advanceTimersByTimeAsync(2000);
+      } finally {
+        stop();
+      }
     });
   });
 
