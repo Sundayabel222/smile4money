@@ -26,6 +26,8 @@ interface CreateMatchProps {
     gameId: string;
     platform: Platform;
     platformUsername?: string;
+    networkPassphrase: string;
+    rpcUrl: string;
   }) => Promise<string>;
 }
 
@@ -265,6 +267,8 @@ export function CreateMatch({
           gameId: formData.gameId,
           platform: formData.platform,
           platformUsername: formData.platformUsername || undefined,
+          networkPassphrase,
+          rpcUrl,
         });
 
         if (result) {
@@ -278,7 +282,7 @@ export function CreateMatch({
         setErrorMsg(err instanceof Error ? err.message : 'Failed to create match');
       }
     },
-    [formData, player1Address, token, apiBaseUrl, knownGameIds, onCreateMatch],
+    [formData, player1Address, token, apiBaseUrl, knownGameIds, onCreateMatch, networkPassphrase, rpcUrl],
   );
 
   function resetForm() {

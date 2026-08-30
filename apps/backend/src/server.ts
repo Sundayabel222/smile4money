@@ -3,6 +3,7 @@ dotenv.config();
 
 import { app } from './app.js';
 import { initializeQueue, closeQueue, startRetryWorker, listDlqEntries, writeToDlq } from './queue.js';
+import { initializeMatchStore } from './store/index.js';
 import { PollingJobStore, PollingWorker } from './services/polling.js';
 import ChessPlatformPoller from './services/game-poller.js';
 import logger from './logger.js';
@@ -29,6 +30,10 @@ async function main() {
     // Initialize the persistent queue store
     await initializeQueue();
     logger.info('Queue store initialized');
+
+    // Initialize the persistent match store (SQLite-backed)
+    await initializeMatchStore();
+    logger.info('Match store initialized');
 
     // Load any pending jobs from the queue on startup
     const pendingEntries = await listDlqEntries();

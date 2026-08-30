@@ -83,8 +83,7 @@ export default defineConfig({
         // Next.js / framework scaffold pages that have no unit tests yet
         'src/app/**',
         'src/pages/**',
-        // Placeholder component pending implementation
-        'src/components/hello.tsx',
+
       ],
       // Enforce minimum coverage thresholds on testable source.
       // CI will fail (exit non-zero) if any metric drops below these values.

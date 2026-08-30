@@ -3907,6 +3907,35 @@ fn test_activated_ledger_some_after_both_deposits() {
 // create_match either succeeds or returns one of the known-valid error codes.
 // The contract should NEVER panic, even with arbitrary inputs.
 
+#[test]
+fn test_create_match_min_stake_boundary() {
+    // Use the same setup helper as the fuzz tests – it returns all needed variables.
+    let (env, contract_id, oracle, admin, _, player1, player2, token) = setup();
+    let client = EscrowContractClient::new(&env, &contract_id);
+
+    let min_stake = crate::MIN_STAKE; // Should be 1
+    let game_id = String::from_str(&env, "min_stake_test");
+
+    let result = client.try_create_match(
+        &player1,
+        &player2,
+        &min_stake,
+        &token,
+        &game_id,
+        &Platform::Lichess,
+    );
+
+    // Assert success – the exact minimum stake must be accepted.
+    assert!(result.is_ok(), "create_match with MIN_STAKE should succeed");
+    let match_id = result.unwrap();
+    assert!(match_id >= 0);
+
+    // Optionally verify the match was stored correctly.
+    let match_data = client.get_match(&match_id).unwrap();
+    assert_eq!(match_data.stake_amount, min_stake);
+    assert_eq!(match_data.state, MatchState::Pending);
+}
+
 #[cfg(test)]
 mod fuzz {
     use super::*;
@@ -4149,4 +4178,79 @@ mod fuzz {
             );
         }
     }
+}
+
+#[test]
+fn test_create_match_max_stake_boundary() {
+    // Use the same setup helper as the fuzz tests.
+    let (env, contract_id, oracle, admin, _, player1, player2, token) = setup();
+    let client = EscrowContractClient::new(&env, &contract_id);
+
+    let max_stake = crate::MAX_STAKE; // Should be 10_000_000_000_000
+    let game_id = String::from_str(&env, "max_stake_test");
+
+    let result = client.try_create_match(
+        &player1,
+        &player2,
+        &max_stake,
+        &token,
+        &game_id,
+        &Platform::Lichess,
+    );
+
+    // Assert success – the exact maximum stake must be accepted.
+    assert!(result.is_ok(), "create_match with MAX_STAKE should succeed");
+    let match_id = result.unwrap();
+    assert!(match_id >= 0);
+
+    // Verify the match was stored correctly.
+    let match_data = client.get_match(&match_id).unwrap();
+    assert_eq!(match_data.stake_amount, max_stake);
+    assert_eq!(match_data.state, MatchState::Pending);
+}
+
+#[test]
+fn test_finalize_result_at_exact_dispute_window_boundary() {
+    let (env, contract_id, oracle, admin, _, player1, player2, token) = setup();
+    let client = EscrowContractClient::new(&env, &contract_id);
+
+    let stake = 1000;
+    let game_id = String::from_str(&env, "boundary_test");
+
+    // 1. Create match
+    let match_id = client.try_create_match(
+        &player1,
+        &player2,
+        &stake,
+        &token,
+        &game_id,
+        &Platform::Lichess,
+    ).unwrap();
+
+    // 2. Both players deposit
+    client.deposit(&player1, &match_id, &stake).unwrap();
+    client.deposit(&player2, &match_id, &stake).unwrap();
+
+    // 3. Oracle submits result (state → PendingResult)
+    let result = MatchResult::Player1Wins;
+    client.submit_result(&oracle, &match_id, &result, &game_id).unwrap();
+
+    // 4. Get the stored match to read pending_result_ledger
+    let match_data = client.get_match(&match_id).unwrap();
+    let pending_result_ledger = match_data.pending_result_ledger.unwrap(); // unwrap safely
+
+    // 5. Get dispute window from the contract (or use constant)
+    let dispute_window = crate::DISPUTE_WINDOW_LEDGERS; // adjust if needed
+
+    // 6. Advance ledger to exactly pending_result_ledger + dispute_window
+    let boundary_ledger = pending_result_ledger + dispute_window;
+    env.ledger().set_sequence_number(boundary_ledger);
+
+    // 7. Call finalize_result – must be rejected with DisputeWindowActive
+    let result = client.try_finalize_result(&match_id);
+    assert!(
+        matches!(result, Err(Ok(Error::DisputeWindowActive))),
+        "finalize_result at exact boundary should be rejected with DisputeWindowActive, got: {:?}",
+        result
+    );
 }
