@@ -1,7 +1,13 @@
 #![cfg(test)]
 
 use super::*;
-use soroban_sdk::{testutils::Address as _, Env, Symbol};
+use soroban_sdk::{testutils::Address as _, Env, FromVal, IntoVal, Symbol, Val, Vec};
+
+/// Raw contract invocation, so tests can exercise the public read-only
+/// accessors that are not part of the generated client (they take `Env`).
+fn call_raw(env: &Env, contract_id: &Address, name: &str, args: Vec<Val>) -> Result<Val, soroban_sdk::Error> {
+    env.invoke_contract(contract_id, &Symbol::new(env, name), args)
+}
 
 // ============================================================================
 // SETUP AND HELPERS
@@ -215,6 +221,86 @@ fn test_register_multiple_contracts() {
         let result = client.try_register_contract(&admin, &symbol);
         assert!(result.is_ok(), "Failed to register contract_{}", i);
     }
+
+    // The instance counter tracks every live registration for pagination.
+    let count: Val = call_raw(
+        &env,
+        &contract_id,
+        "registration_count",
+        Vec::new(&env),
+    )
+    .unwrap();
+    assert_eq!(u32::from_val(&env, &count), 3);
+}
+
+#[test]
+fn test_get_registration_returns_record_without_touching_other_entries() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (admin, _, contract_id) = setup(&env);
+    let client = ContractRegistryClient::new(&env, &contract_id);
+
+    let sym1 = Symbol::new(&env, "alpha");
+    let sym2 = Symbol::new(&env, "beta");
+    client.register_contract(&admin, &sym1);
+    client.register_contract(&admin, &sym2);
+
+    // Reads one per-contract persistent entry; unknown symbols simply miss.
+    assert!(call_raw(
+        &env,
+        &contract_id,
+        "get_registration",
+        (sym1,).into_val(&env)
+    )
+    .is_ok());
+
+    let missing = call_raw(
+        &env,
+        &contract_id,
+        "get_registration",
+        (Symbol::new(&env, "nope"),).into_val(&env),
+    );
+    assert!(missing.is_err());
+}
+
+#[test]
+fn test_deregister_decrements_registration_count() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (admin, _, contract_id) = setup(&env);
+    let client = ContractRegistryClient::new(&env, &contract_id);
+
+    let sym1 = Symbol::new(&env, "one");
+    let sym2 = Symbol::new(&env, "two");
+    client.register_contract(&admin, &sym1);
+    client.register_contract(&admin, &sym2);
+
+    client.deregister_contract(&admin, &sym1);
+
+    let count: Val = call_raw(
+        &env,
+        &contract_id,
+        "registration_count",
+        Vec::new(&env),
+    )
+    .unwrap();
+    assert_eq!(u32::from_val(&env, &count), 1);
+
+    // The removed entry is gone; the survivor still resolves.
+    assert!(call_raw(
+        &env,
+        &contract_id,
+        "get_registration",
+        (sym1,).into_val(&env)
+    )
+    .is_err());
+    assert!(call_raw(
+        &env,
+        &contract_id,
+        "get_registration",
+        (sym2,).into_val(&env)
+    )
+    .is_ok());
 }
 
 #[test]
