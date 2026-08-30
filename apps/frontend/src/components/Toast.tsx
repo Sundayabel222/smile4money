@@ -59,6 +59,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const timers = timersRef.current;
     return () => {
+      if (import.meta.env.DEV && timers.size > 0) {
+        console.warn(
+          `[Toast] Provider unmounting with ${timers.size} active timer(s). ` +
+          'This should not happen in production — check for premature unmounts.',
+        );
+      }
       timers.forEach((timerId) => window.clearTimeout(timerId));
       timers.clear();
     };
