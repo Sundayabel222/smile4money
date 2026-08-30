@@ -294,6 +294,14 @@ impl OracleContract {
             .try_transfer(&env.current_contract_address(), &to, &amount)
             .map_err(|_| Error::TransferFailed)?;
 
+        // Emit an on-chain audit event for recovered funds so there is a
+        // blockchain-level record of what token, amount, destination and admin
+        // performed the recovery.
+        env.events().publish(
+            (Symbol::new(&env, "oracle"), symbol_short!("withdraw")),
+            (token, amount, to, admin),
+        );
+
         Ok(())
     }
 
