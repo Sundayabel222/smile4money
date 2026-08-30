@@ -3,7 +3,6 @@ import { matchStore } from '../store/index.js';
 import { authenticate } from '../middleware/auth.js';
 import { fetchLichessResult, GameNotFoundError } from '../fetchers/lichess.js';
 import { fetchChessDotComResult } from '../fetchers/chessdotcom.js';
-import { createIdentityMap } from '../services/player-identity.js';
 
 const router = Router();
 const store = matchStore;

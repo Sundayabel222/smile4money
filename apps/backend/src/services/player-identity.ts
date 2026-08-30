@@ -38,7 +38,7 @@
  * the registered players.
  */
 
-import { GameResult } from '../fetchers/lichess.js';
+import type { GameResult } from '../fetchers/lichess.js';
 import type { MatchRecord } from '../store/match-store.js';
 
 /**
@@ -154,85 +154,32 @@ export function verifyPlayerIdentities(
 }
 
 /**
- * Extract player usernames from a game result and create a mapping.
- * Used to store identity information when a match is created.
+ * DEPRECATED: This function is no longer used and has been removed.
  *
- * # Arguments
+ * createIdentityMap assumed player1 was always white, which is incorrect.
+ * Color assignment is platform-determined, and assuming a color causes
+ * the identity map to be inverted when player1 is black, causing all
+ * subsequent verification calls to fail.
  *
- * - `player1Address` - Stellar address of player1
- * - `player2Address` - Stellar address of player2
- * - `result` - The game result from the API (contains username information)
- * - `platform` - The chess platform
- * - `assumedPlayer1IsWhite` - Whether player1 is assumed to be white (true)
- *   or black (false)
+ * Instead, usernames are stored directly from the API at match creation
+ * time without color assumptions. During verification, usernames are
+ * compared against both registered players regardless of color assignment.
  *
- * # Returns
- *
- * A PlayerIdentityMap that can be stored and later used for verification.
+ * See verifyPlayerIdentities() for the color-agnostic verification logic.
  */
-export function createIdentityMap(
-  player1Address: string,
-  player2Address: string,
-  result: GameResult,
-  platform: string,
-  assumedPlayer1IsWhite: boolean = true,
-): PlayerIdentityMap {
-  if (assumedPlayer1IsWhite) {
-    return {
-      player1Address,
-      player1Username: result.whitePlayer,
-      player2Address,
-      player2Username: result.blackPlayer,
-      platform,
-    };
-  } else {
-    return {
-      player1Address,
-      player1Username: result.blackPlayer,
-      player2Address,
-      player2Username: result.whitePlayer,
-      platform,
-    };
-  }
-}
 
 /**
- * Determine which player is white and which is black based on the API result.
- * Returns the corrected identity map if the players were swapped.
+ * DEPRECATED: This function is no longer used and has been removed.
  *
- * # Arguments
+ * normalizePlayerOrder previously attempted to detect swapped player colors
+ * and "correct" the identity map. However, this approach was fundamentally
+ * flawed because:
  *
- * - `match` - The on-chain match record
- * - `result` - The game result from the API
- * - `identityMap` - The original identity map
+ * 1. Color assignment is platform-determined and cannot be assumed
+ * 2. Attempting to swap addresses based on color leads to identity confusion
+ * 3. verifyPlayerIdentities() already handles color-agnostic verification
+ *    by checking both (white=player1, black=player2) and (white=player2, black=player1)
  *
- * # Returns
- *
- * A corrected identity map if players were swapped, otherwise the original.
+ * The verification logic now matches usernames to colors without modifying
+ * the identity map. See verifyPlayerIdentities() for details.
  */
-export function normalizePlayerOrder(
-  match: MatchRecord,
-  result: GameResult,
-  identityMap: PlayerIdentityMap,
-): PlayerIdentityMap {
-  const normalize = (name: string) => (name || '').trim().toLowerCase();
-
-  const whiteNorm = normalize(result.whitePlayer);
-  const blackNorm = normalize(result.blackPlayer);
-  const player1Norm = normalize(identityMap.player1Username);
-  const player2Norm = normalize(identityMap.player2Username);
-
-  // If players are swapped in the API result, swap the identity map
-  if (whiteNorm === player2Norm && blackNorm === player1Norm) {
-    return {
-      player1Address: identityMap.player2Address,
-      player1Username: identityMap.player2Username,
-      player2Address: identityMap.player1Address,
-      player2Username: identityMap.player1Username,
-      platform: identityMap.platform,
-    };
-  }
-
-  // Otherwise return the original map
-  return identityMap;
-}
