@@ -220,6 +220,13 @@ No single party can unilaterally steal funds. All payout rules are enforced on-c
 - [ ] `cancel_match` and `claim_timeout` remain callable while paused
 - [ ] Only admin can pause/unpause
 
+
+## Hall of Fame
+
+We appreciate the security researchers who help make this project safer. If you report a valid vulnerability and agree to coordinated disclosure, we will add your name (or handle) here.
+
+*No entries yet – be the first!*
+
 ### Known Limitations
 - The oracle is a centralised component; a compromised oracle key can submit incorrect results within the dispute window. Mitigated by the `override_result` admin function and `update_oracle` key rotation.
 - The dispute window admin override is itself a centralised control. A compromised admin key could manipulate results during the window. Mitigated by making `override_result` only callable during the window and emitting an `oracle:result_overridden` event for transparency.
