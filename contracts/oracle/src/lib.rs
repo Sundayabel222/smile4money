@@ -229,6 +229,13 @@ impl OracleContract {
             .ok_or(Error::Unauthorized)?;
         admin.require_auth();
 
+        // If the new admin is the same as the current admin, treat this as a no-op.
+        // Do not update storage or emit an `adm_xfer` event to avoid misleading
+        // on-chain audit trails and false-positive off-chain alerts.
+        if new_admin == admin {
+            return Ok(());
+        }
+
         env.storage().instance().set(&DataKey::Admin, &new_admin);
         env.storage()
             .instance()
@@ -286,6 +293,14 @@ impl OracleContract {
         token::Client::new(&env, &token)
             .try_transfer(&env.current_contract_address(), &to, &amount)
             .map_err(|_| Error::TransferFailed)?;
+
+        // Emit an on-chain audit event for recovered funds so there is a
+        // blockchain-level record of what token, amount, destination and admin
+        // performed the recovery.
+        env.events().publish(
+            (Symbol::new(&env, "oracle"), symbol_short!("withdraw")),
+            (token, amount, to, admin),
+        );
 
         Ok(())
     }
